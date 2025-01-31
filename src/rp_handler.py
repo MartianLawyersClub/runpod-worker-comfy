@@ -8,6 +8,8 @@ import os
 import requests
 import base64
 from io import BytesIO
+from google.cloud import storage
+from google.oauth2 import service_account
 
 # Time to wait between API check attempts in milliseconds
 COMFY_API_AVAILABLE_INTERVAL_MS = 50
@@ -248,11 +250,25 @@ def process_output_images(outputs, job_id):
 
     # The image is in the output folder
     if os.path.exists(local_image_path):
-        if os.environ.get("BUCKET_ENDPOINT_URL", False):
-            # URL to image in AWS S3
-            image = rp_upload.upload_image(job_id, local_image_path)
+        bucket_name = os.environ.get("BUCKET_NAME", False)
+        if bucket_name:
+            file_name = f"{job_id}_{output_images}"
+
+            # Upload to GCS
+            info = json.loads(os.environ['GOOGLE_APPLICATION_CREDENTIALS_STRING'])
+            creds = service_account.Credentials.from_service_account_info(
+                info, scopes=('https://www.googleapis.com/auth/devstorage.read_write',))
+            storage_client = storage.Client(credentials=creds)
+            bucket = storage_client.bucket(bucket_name)
+
+            folder_name = os.environ.get("FOLDER_NAME", False)
+            blob_path = f"{folder_name}/{file_name}" if folder_name else file_name
+            blob = bucket.blob(blob_path)
+            # URL to image in GCP
+            blob.upload_from_filename(local_image_path)
+            image = f"https://storage.googleapis.com/{bucket_name}/{file_name}"
             print(
-                "runpod-worker-comfy - the image was generated and uploaded to AWS S3"
+                "runpod-worker-comfy - the image was generated and uploaded to GCP"
             )
         else:
             # base64 image
