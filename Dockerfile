@@ -47,6 +47,9 @@ ADD *snapshot*.json /
 # Restore the snapshot to install custom nodes
 RUN /restore_snapshot.sh
 
+# Get the BRIA-BG model
+RUN wget -O /comfyui/custom_nodes/ComfyUI-BRIA_AI-RMBG/RMBG-1.4/model.pth https://huggingface.co/briaai/RMBG-1.4/resolve/main/model.pth
+
 # Start container
 CMD ["/start.sh"]
 
