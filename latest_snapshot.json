@@ -12,6 +12,10 @@
         "https://github.com/cubiq/ComfyUI_essentials": {
             "hash": "43e543ec0b0b3d4e8b22685f75edb042d09eb319",
             "disabled": false
+        },
+        "https://github.com/chflame163/ComfyUI_LayerStyle": {
+            "hash": "127be44f9d6b384e874a73ba794a7eeb8f2b6a0f",
+            "disabled": false
         }
     },
     "file_custom_nodes": [
@@ -28,6 +32,17 @@
         "rembg[gpu]==2.0.56": "",
         "numba==0.59.1": "",
         "colour-science==0.4.4": "",
-        "pixeloe==0.0.10": ""
+        "pixeloe==0.0.10": "",
+        "numpy==1.24.4": "",
+        "pillow==10.4.0": "",
+        "matplotlib==3.8.1": "",
+        "scipy==1.14.1": "",
+        "scikit-image==0.23.2": "",
+        "PyMatting==1.1.12": "",
+        "timm==1.0.7": "",
+        "transformers==4.45.1": "",
+        "blend_modes==2.2.0": "",
+        "huggingface-hub==0.25.1": "",
+        "loguru==0.7.3": ""
     }
 }
