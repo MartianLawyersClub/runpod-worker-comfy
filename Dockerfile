@@ -59,13 +59,6 @@ WORKDIR /comfyui
 # Create necessary directories
 RUN mkdir -p models/checkpoints models/vae
 
-# Download checkpoints/vae/LoRA to include in image based on model type
-
-RUN wget -O models/checkpoints/sd_xl_base_1.0.safetensors https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors
-RUN wget -O models/vae/sdxl_vae.safetensors https://huggingface.co/stabilityai/sdxl-vae/resolve/main/sdxl_vae.safetensors
-RUN wget -O models/vae/sdxl-vae-fp16-fix.safetensors https://huggingface.co/madebyollin/sdxl-vae-fp16-fix/resolve/main/sdxl_vae.safetensors
-RUN wget -O models/loras/better_gugs_v4_1-step00002000.safetensors --header="Authorization: Bearer ${HUGGINGFACE_ACCESS_TOKEN}" https://huggingface.co/Kamen/better_gugs/resolve/main/better_gugs_v4_1-step00002000.safetensors
-
 # Stage 3: Final image
 FROM base as final
 
