@@ -26,6 +26,42 @@ COMFY_HOST = "127.0.0.1:8188"
 REFRESH_WORKER = os.environ.get("REFRESH_WORKER", "false").lower() == "true"
 
 
+def validate_output_instructions(output_instructions):
+    # Validate if output_instructions is provided
+    if output_instructions is None:
+        return "Please provide output instructions"
+
+    # Check if output_instructions is a string and try to parse it as JSON
+    if isinstance(output_instructions, str):
+        try:
+            output_instructions = json.loads(output_instructions)
+        except json.JSONDecodeError:
+            return "Invalid JSON format in output instructions"
+
+    # Validate 'method' in output_instructions
+    method = output_instructions.get("method")
+    if method is None:
+        return "Missing 'method' parameter"
+    
+    if method not in ["raw", "GCP"]:
+        return "Method must be one of 'raw' or 'GCP'"
+
+    # Validate bucket target in output_instructions, if provided
+    if method == "GCP":
+        bucket = output_instructions.get("bucket")
+        folder = output_instructions.get("folder")
+        file_name = output_instructions.get("file_name")
+        if bucket is None:
+            return None, "Missing 'bucket' parameter"
+        if folder is None:
+            return None, "Missing 'folder' parameter"
+        if file_name is None:
+            return None, "Missing 'file_name' parameter"
+
+    # Return validated data and no error
+    return None
+
+
 def validate_input(job_input):
     """
     Validates the input for the handler function.
@@ -63,9 +99,15 @@ def validate_input(job_input):
                 None,
                 "'images' must be a list of objects with 'name' and 'image' keys",
             )
+        
+    output_instructions = job_input.get("output_instructions")
+    # Make sure that the outpu_instructions is valid
+    error_message = validate_output_instructions(output_instructions)
+    if error_message:
+        return None, error_message
 
     # Return validated data and no error
-    return {"workflow": workflow, "images": images}, None
+    return {"workflow": workflow, "images": images, "output_instructions": output_instructions}, None
 
 
 def check_server(url, retries=500, delay=50):
@@ -202,7 +244,7 @@ def base64_encode(img_path):
         return f"{encoded_string}"
 
 
-def process_output_images(outputs, job_id):
+def process_output_images(outputs, job_id, output_instructions):
     """
     This function takes the "outputs" from image generation and the job ID,
     then determines the correct way to return the image, either as a direct URL
@@ -250,23 +292,23 @@ def process_output_images(outputs, job_id):
 
     # The image is in the output folder
     if os.path.exists(local_image_path):
-        bucket_name = os.environ.get("BUCKET_NAME", False)
-        if bucket_name:
-            file_name = f"{job_id}_{output_images}"
+        if output_instructions['method'] == "GCP":
+            bucket_name = output_instructions['bucket']
+            folder_name = output_instructions['folder']
+            file_name = output_instructions['file_name']
+            blob_path = f"{folder_name}/{file_name}" if folder_name else file_name
 
             # Upload to GCS
             info = json.loads(os.environ['GOOGLE_APPLICATION_CREDENTIALS_STRING'])
             creds = service_account.Credentials.from_service_account_info(
                 info, scopes=('https://www.googleapis.com/auth/devstorage.read_write',))
             storage_client = storage.Client(credentials=creds)
+            
             bucket = storage_client.bucket(bucket_name)
-
-            folder_name = os.environ.get("FOLDER_NAME", False)
-            blob_path = f"{folder_name}/{file_name}" if folder_name else file_name
             blob = bucket.blob(blob_path)
             # URL to image in GCP
             blob.upload_from_filename(local_image_path)
-            image = f"https://storage.googleapis.com/{bucket_name}/{file_name}"
+            image = f"https://storage.googleapis.com/{bucket_name}/{blob_path}"
             print(
                 "runpod-worker-comfy - the image was generated and uploaded to GCP"
             )
@@ -312,6 +354,7 @@ def handler(job):
     # Extract validated data
     workflow = validated_data["workflow"]
     images = validated_data.get("images")
+    output_instructions = validated_data['output_instructions']
 
     # Make sure that the ComfyUI API is available
     check_server(
@@ -354,7 +397,7 @@ def handler(job):
         return {"error": f"Error waiting for image generation: {str(e)}"}
 
     # Get the generated image and return it as URL in an AWS bucket or as base64
-    images_result = process_output_images(history[prompt_id].get("outputs"), job["id"])
+    images_result = process_output_images(history[prompt_id].get("outputs"), job["id"], output_instructions)
 
     result = {**images_result, "refresh_worker": REFRESH_WORKER}
 
