@@ -34,6 +34,9 @@ RUN pip install runpod requests
 # Install GCP storage
 RUN pip install google-cloud-storage
 
+# Install Pillow to do image compression
+RUN pip install pillow
+
 # Support for the network volume
 ADD src/extra_model_paths.yaml ./
 

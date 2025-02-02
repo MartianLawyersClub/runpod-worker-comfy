@@ -10,6 +10,7 @@ import base64
 from io import BytesIO
 from google.cloud import storage
 from google.oauth2 import service_account
+from PIL import Image
 
 # Time to wait between API check attempts in milliseconds
 COMFY_API_AVAILABLE_INTERVAL_MS = 50
@@ -308,6 +309,19 @@ def process_output_images(outputs, job_id, output_instructions):
             blob = bucket.blob(blob_path)
             # URL to image in GCP
             blob.upload_from_filename(local_image_path)
+            
+            # Upload a compressed version to GCS
+            image = Image.open(local_image_path)
+            image = image.resize((768, 768))
+            with BytesIO() as f:
+                image.save(f, 'WEBP', quality=85)
+                f.seek(0)
+                image_webp_data = f.getvalue()
+            compressed_file_name = "compressed_" + file_name.replace("png", "webp")
+            compressed_blob_path = f"{folder_name}/{compressed_file_name}" if folder_name else compressed_file_name
+            blob = bucket.blob(compressed_blob_path)
+            blob.upload_from_string(image_webp_data, content_type="image/webp")
+            
             image = f"https://storage.googleapis.com/{bucket_name}/{blob_path}"
             print(
                 "runpod-worker-comfy - the image was generated and uploaded to GCP"
